@@ -96,3 +96,8 @@ export type ProductMatch = Prisma.ProductMatchModel
  * 
  */
 export type CollectorRun = Prisma.CollectorRunModel
+/**
+ * Model MarketplaceCredential
+ * 
+ */
+export type MarketplaceCredential = Prisma.MarketplaceCredentialModel

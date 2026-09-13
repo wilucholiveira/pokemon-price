@@ -407,7 +407,8 @@ export const ModelName = {
   PriceHistory: 'PriceHistory',
   RawOffer: 'RawOffer',
   ProductMatch: 'ProductMatch',
-  CollectorRun: 'CollectorRun'
+  CollectorRun: 'CollectorRun',
+  MarketplaceCredential: 'MarketplaceCredential'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -423,7 +424,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "set" | "card" | "setTranslation" | "cardTranslation" | "product" | "store" | "offer" | "priceHistory" | "rawOffer" | "productMatch" | "collectorRun"
+    modelProps: "set" | "card" | "setTranslation" | "cardTranslation" | "product" | "store" | "offer" | "priceHistory" | "rawOffer" | "productMatch" | "collectorRun" | "marketplaceCredential"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -1241,6 +1242,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    MarketplaceCredential: {
+      payload: Prisma.$MarketplaceCredentialPayload<ExtArgs>
+      fields: Prisma.MarketplaceCredentialFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.MarketplaceCredentialFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MarketplaceCredentialPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.MarketplaceCredentialFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MarketplaceCredentialPayload>
+        }
+        findFirst: {
+          args: Prisma.MarketplaceCredentialFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MarketplaceCredentialPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.MarketplaceCredentialFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MarketplaceCredentialPayload>
+        }
+        findMany: {
+          args: Prisma.MarketplaceCredentialFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MarketplaceCredentialPayload>[]
+        }
+        create: {
+          args: Prisma.MarketplaceCredentialCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MarketplaceCredentialPayload>
+        }
+        createMany: {
+          args: Prisma.MarketplaceCredentialCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.MarketplaceCredentialCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MarketplaceCredentialPayload>[]
+        }
+        delete: {
+          args: Prisma.MarketplaceCredentialDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MarketplaceCredentialPayload>
+        }
+        update: {
+          args: Prisma.MarketplaceCredentialUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MarketplaceCredentialPayload>
+        }
+        deleteMany: {
+          args: Prisma.MarketplaceCredentialDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.MarketplaceCredentialUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.MarketplaceCredentialUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MarketplaceCredentialPayload>[]
+        }
+        upsert: {
+          args: Prisma.MarketplaceCredentialUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$MarketplaceCredentialPayload>
+        }
+        aggregate: {
+          args: Prisma.MarketplaceCredentialAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateMarketplaceCredential>
+        }
+        groupBy: {
+          args: Prisma.MarketplaceCredentialGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.MarketplaceCredentialGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.MarketplaceCredentialCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.MarketplaceCredentialCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -1478,6 +1553,21 @@ export const CollectorRunScalarFieldEnum = {
 } as const
 
 export type CollectorRunScalarFieldEnum = (typeof CollectorRunScalarFieldEnum)[keyof typeof CollectorRunScalarFieldEnum]
+
+
+export const MarketplaceCredentialScalarFieldEnum = {
+  id: 'id',
+  provider: 'provider',
+  externalUserId: 'externalUserId',
+  accessTokenEncrypted: 'accessTokenEncrypted',
+  refreshTokenEncrypted: 'refreshTokenEncrypted',
+  accessTokenExpiresAt: 'accessTokenExpiresAt',
+  lastRefreshedAt: 'lastRefreshedAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type MarketplaceCredentialScalarFieldEnum = (typeof MarketplaceCredentialScalarFieldEnum)[keyof typeof MarketplaceCredentialScalarFieldEnum]
 
 
 export const SortOrder = {
@@ -1904,6 +1994,7 @@ export type GlobalOmitConfig = {
   rawOffer?: Prisma.RawOfferOmit
   productMatch?: Prisma.ProductMatchOmit
   collectorRun?: Prisma.CollectorRunOmit
+  marketplaceCredential?: Prisma.MarketplaceCredentialOmit
 }
 
 /* Types for Logging */

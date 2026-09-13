@@ -414,3 +414,23 @@ model CollectorRun {
   @@index([startedAt])
   @@map("collector_runs")
 }
+
+model MarketplaceCredential {
+  id String @id @default(cuid())
+
+  provider String @unique
+
+  externalUserId String?
+
+  accessTokenEncrypted  String @db.Text
+  refreshTokenEncrypted String @db.Text
+
+  accessTokenExpiresAt DateTime
+  lastRefreshedAt      DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([provider])
+  @@map("marketplace_credentials")
+}

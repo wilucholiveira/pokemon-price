@@ -61,7 +61,8 @@ export const ModelName = {
   PriceHistory: 'PriceHistory',
   RawOffer: 'RawOffer',
   ProductMatch: 'ProductMatch',
-  CollectorRun: 'CollectorRun'
+  CollectorRun: 'CollectorRun',
+  MarketplaceCredential: 'MarketplaceCredential'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -278,6 +279,21 @@ export const CollectorRunScalarFieldEnum = {
 } as const
 
 export type CollectorRunScalarFieldEnum = (typeof CollectorRunScalarFieldEnum)[keyof typeof CollectorRunScalarFieldEnum]
+
+
+export const MarketplaceCredentialScalarFieldEnum = {
+  id: 'id',
+  provider: 'provider',
+  externalUserId: 'externalUserId',
+  accessTokenEncrypted: 'accessTokenEncrypted',
+  refreshTokenEncrypted: 'refreshTokenEncrypted',
+  accessTokenExpiresAt: 'accessTokenExpiresAt',
+  lastRefreshedAt: 'lastRefreshedAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type MarketplaceCredentialScalarFieldEnum = (typeof MarketplaceCredentialScalarFieldEnum)[keyof typeof MarketplaceCredentialScalarFieldEnum]
 
 
 export const SortOrder = {
