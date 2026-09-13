@@ -1,0 +1,416 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum ProductType {
+  SINGLE_CARD
+  BOOSTER
+  BOOSTER_BOX
+  ELITE_TRAINER_BOX
+  TIN
+  BLISTER
+  BUNDLE
+  COLLECTION_BOX
+  ACCESSORY
+  OTHER
+}
+
+enum CardLanguage {
+  PT_BR
+  EN
+  ES
+  JP
+  OTHER
+}
+
+enum CardCondition {
+  NEW
+  NEAR_MINT
+  LIGHTLY_PLAYED
+  MODERATELY_PLAYED
+  HEAVILY_PLAYED
+  DAMAGED
+  SEALED
+  UNKNOWN
+}
+
+enum StoreType {
+  MARKETPLACE
+  SPECIALIZED_STORE
+  RETAILER
+  OTHER
+}
+
+enum MatchStatus {
+  AUTO_MATCHED
+  REVIEW_REQUIRED
+  CONFIRMED
+  REJECTED
+}
+
+enum CollectorRunStatus {
+  RUNNING
+  SUCCESS
+  PARTIAL_SUCCESS
+  FAILED
+}
+
+enum RawOfferStatus {
+  PENDING
+  PROCESSED
+  FAILED
+  IGNORED
+}
+
+enum Currency {
+  BRL
+  USD
+  EUR
+  JPY
+  GBP
+  OTHER
+}
+
+enum MarketRegion {
+  BRAZIL
+  NORTH_AMERICA
+  EUROPE
+  JAPAN
+  ASIA
+  OTHER
+}
+
+model Set {
+  id          String    @id @default(cuid())
+  externalId  String?   @unique
+  name        String
+  code        String?
+  series      String?
+  releaseDate DateTime?
+  logoUrl     String?
+  symbolUrl   String?
+
+  cards        Card[]
+  translations SetTranslation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([name])
+  @@index([code])
+  @@map("sets")
+}
+
+model Card {
+  id         String  @id @default(cuid())
+  externalId String? @unique
+
+  setId String
+  set   Set    @relation(fields: [setId], references: [id], onDelete: Cascade)
+
+  name          String
+  number        String
+  printedNumber String?
+  rarity        String?
+  supertype     String?
+  hp            String?
+  artist        String?
+
+  imageSmall String?
+  imageLarge String?
+
+  releaseDate DateTime?
+
+  products     Product[]
+  translations CardTranslation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([setId, number])
+  @@index([name])
+  @@index([number])
+  @@index([setId])
+  @@map("cards")
+}
+
+model SetTranslation {
+  id String @id @default(cuid())
+
+  setId String
+  set   Set    @relation(fields: [setId], references: [id], onDelete: Cascade)
+
+  language CardLanguage
+  name     String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([setId, language])
+  @@index([language])
+  @@map("set_translations")
+}
+
+model CardTranslation {
+  id String @id @default(cuid())
+
+  cardId String
+  card   Card   @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  language   CardLanguage
+  name       String
+  rarity     String?
+  imageSmall String?
+  imageLarge String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([cardId, language])
+  @@index([language])
+  @@index([name])
+  @@map("card_translations")
+}
+
+model Product {
+  id String @id @default(cuid())
+
+  cardId String?
+  card   Card?   @relation(fields: [cardId], references: [id], onDelete: SetNull)
+
+  productType ProductType
+
+  language  CardLanguage  @default(OTHER)
+  condition CardCondition @default(UNKNOWN)
+
+  isGraded       Boolean @default(false)
+  gradingCompany String?
+  grade          String?
+
+  name String
+  slug String @unique
+
+  active Boolean @default(true)
+
+  offers       Offer[]
+  priceHistory PriceHistory[]
+  matches      ProductMatch[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([cardId])
+  @@index([productType])
+  @@index([active])
+  @@map("products")
+}
+
+model Store {
+  id String @id @default(cuid())
+
+  name String
+  slug String @unique
+
+  type StoreType
+
+  country      String       @default("BR")
+  marketRegion MarketRegion @default(BRAZIL)
+  baseUrl      String?
+
+  active Boolean @default(true)
+
+  offers        Offer[]
+  priceHistory  PriceHistory[]
+  rawOffers     RawOffer[]
+  matches       ProductMatch[]
+  collectorRuns CollectorRun[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([active])
+  @@map("stores")
+}
+
+model Offer {
+  id String @id @default(cuid())
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  storeId String
+  store   Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  externalId    String
+  externalTitle String
+
+  sellerName String?
+
+  price         Decimal @db.Decimal(12, 2)
+  shippingPrice Decimal @default(0) @db.Decimal(12, 2)
+  totalPrice    Decimal @db.Decimal(12, 2)
+
+  exchangeRate Decimal? @db.Decimal(18, 8)
+
+  priceBrl         Decimal? @db.Decimal(12, 2)
+  shippingPriceBrl Decimal? @db.Decimal(12, 2)
+  totalPriceBrl    Decimal? @db.Decimal(12, 2)
+
+  exchangeRateAt DateTime?
+
+  currency Currency @default(BRL)
+
+  itemLocationCountry String?
+  shipsToBrazil       Boolean?
+
+  url String
+
+  available     Boolean @default(true)
+  stockQuantity Int?
+
+  matchConfidence Decimal? @db.Decimal(5, 4)
+
+  firstSeenAt DateTime @default(now())
+  lastSeenAt  DateTime @default(now())
+
+  priceHistory PriceHistory[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([storeId, externalId])
+  @@index([productId])
+  @@index([storeId])
+  @@index([available])
+  @@index([totalPrice])
+  @@index([productId, totalPrice])
+  @@index([currency])
+  @@index([itemLocationCountry])
+  @@index([shipsToBrazil])
+  @@index([productId, totalPriceBrl])
+  @@map("offers")
+}
+
+model PriceHistory {
+  id String @id @default(cuid())
+
+  offerId String?
+  offer   Offer?  @relation(fields: [offerId], references: [id], onDelete: SetNull)
+
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  storeId String
+  store   Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  price         Decimal @db.Decimal(12, 2)
+  shippingPrice Decimal @default(0) @db.Decimal(12, 2)
+  totalPrice    Decimal @db.Decimal(12, 2)
+
+  currency Currency @default(BRL)
+
+  exchangeRate Decimal? @db.Decimal(18, 8)
+
+  priceBrl         Decimal? @db.Decimal(12, 2)
+  shippingPriceBrl Decimal? @db.Decimal(12, 2)
+  totalPriceBrl    Decimal? @db.Decimal(12, 2)
+
+  exchangeRateAt DateTime?
+
+  available Boolean @default(true)
+
+  capturedAt DateTime @default(now())
+
+  @@index([offerId])
+  @@index([productId])
+  @@index([storeId])
+  @@index([capturedAt])
+  @@index([productId, capturedAt])
+  @@index([currency])
+  @@index([productId, capturedAt, totalPriceBrl])
+  @@map("price_history")
+}
+
+model RawOffer {
+  id String @id @default(cuid())
+
+  storeId String
+  store   Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  externalId String?
+  payload    Json
+
+  processingStatus RawOfferStatus @default(PENDING)
+
+  errorMessage String?
+
+  collectedAt DateTime  @default(now())
+  processedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([storeId])
+  @@index([processingStatus])
+  @@index([collectedAt])
+  @@map("raw_offers")
+}
+
+model ProductMatch {
+  id String @id @default(cuid())
+
+  storeId String
+  store   Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  externalId    String
+  externalTitle String
+
+  candidateProductId String?
+  candidateProduct   Product? @relation(fields: [candidateProductId], references: [id], onDelete: SetNull)
+
+  confidenceScore Decimal? @db.Decimal(5, 4)
+
+  matchMethod String?
+
+  status MatchStatus @default(REVIEW_REQUIRED)
+
+  reviewedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([storeId, externalId])
+  @@index([candidateProductId])
+  @@index([status])
+  @@map("product_matches")
+}
+
+model CollectorRun {
+  id String @id @default(cuid())
+
+  storeId String
+  store   Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  status CollectorRunStatus @default(RUNNING)
+
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+
+  itemsFound   Int @default(0)
+  itemsCreated Int @default(0)
+  itemsUpdated Int @default(0)
+  itemsFailed  Int @default(0)
+
+  errorMessage String?
+
+  createdAt DateTime @default(now())
+
+  @@index([storeId])
+  @@index([status])
+  @@index([startedAt])
+  @@map("collector_runs")
+}
