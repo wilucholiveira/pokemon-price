@@ -27,30 +27,53 @@ const examples = [
   "151",
 ];
 
-export default function HomePage() {
+export default function CardsPage() {
   const [query, setQuery] = useState("");
   const [cards, setCards] = useState<CardResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [error, setError] = useState("");
+  const [selectedSet, setSelectedSet] = useState("");
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
+  const [rarityFilter, setRarityFilter] = useState("");
+  const [specialFilter, setSpecialFilter] = useState("");
 
   const resultLabel = useMemo(() => {
     if (!searched || loading || error) return "";
     if (cards.length === 0) return "Nenhuma carta encontrada";
-    return `${cards.length} ${cards.length === 1 ? "resultado" : "resultados"}`;
-  }, [cards.length, searched, loading, error]);
+    const count = total || cards.length;
+    return `${count.toLocaleString("pt-BR")} ${count === 1 ? "resultado" : "resultados"}`;
+  }, [cards.length, total, searched, loading, error]);
 
-  async function runSearch(q: string) {
+  async function runSearch(
+    q: string,
+    options?: { set?: string; page?: number; rarity?: string; special?: string }
+  ) {
     const search = q.trim();
-    if (!search) return;
+    const setFilter = options?.set?.trim() ?? "";
+    const requestedPage = options?.page ?? 1;
+    const rarity = options?.rarity ?? rarityFilter;
+    const special = options?.special ?? specialFilter;
+
+    if (!search && !setFilter) return;
 
     setLoading(true);
     setError("");
     setSearched(true);
 
     try {
+      const params = new URLSearchParams();
+      if (search) params.set("q", search);
+      if (setFilter) params.set("set", setFilter);
+      if (rarity) params.set("rarity", rarity);
+      if (special) params.set("special", special);
+      params.set("limit", "20");
+      params.set("page", String(requestedPage));
+
       const response = await fetch(
-        `/api/cards/search?q=${encodeURIComponent(search)}&limit=20`,
+        `/api/cards/search?${params.toString()}`,
         { cache: "no-store" }
       );
 
@@ -60,15 +83,18 @@ export default function HomePage() {
         throw new Error(data.error ?? "Erro ao pesquisar cartas.");
       }
 
-      const results =
-        data.cards ??
-        data.data ??
-        data.results ??
-        [];
+      const results = data.cards ?? data.data ?? data.results ?? [];
+      const pagination = data.pagination ?? {};
 
       setCards(Array.isArray(results) ? results : []);
+      setSelectedSet(setFilter);
+      setPage(Number(pagination.page ?? requestedPage));
+      setTotal(Number(pagination.total ?? (Array.isArray(results) ? results.length : 0)));
+      setTotalPages(Number(pagination.totalPages ?? 1));
     } catch (err) {
       setCards([]);
+      setTotal(0);
+      setTotalPages(0);
       setError(
         err instanceof Error
           ? err.message
@@ -81,12 +107,55 @@ export default function HomePage() {
 
   async function searchCards(event: FormEvent) {
     event.preventDefault();
-    await runSearch(query);
+    await runSearch(query, { page: 1 });
   }
 
   async function searchExample(value: string) {
     setQuery(value);
-    await runSearch(value);
+    setSelectedSet("");
+    setRarityFilter("");
+    setSpecialFilter("");
+    await runSearch(value, { page: 1, rarity: "", special: "" });
+  }
+
+  async function exploreCollection(setName: string) {
+    setQuery("");
+    setSelectedSet(setName);
+    setRarityFilter("");
+    setSpecialFilter("");
+    await runSearch("", { set: setName, page: 1, rarity: "", special: "" });
+    requestAnimationFrame(() => {
+      document.getElementById("resultados")?.scrollIntoView({ behavior: "smooth" });
+    });
+  }
+
+  async function changePage(nextPage: number) {
+    if (loading || nextPage < 1 || nextPage > totalPages) return;
+    await runSearch(query, {
+      set: selectedSet || undefined,
+      page: nextPage,
+      rarity: rarityFilter,
+      special: specialFilter,
+    });
+    requestAnimationFrame(() => {
+      document.getElementById("resultados")?.scrollIntoView({ behavior: "smooth" });
+    });
+  }
+
+  async function applyFilters(nextRarity: string, nextSpecial: string) {
+    setRarityFilter(nextRarity);
+    setSpecialFilter(nextSpecial);
+
+    await runSearch(query, {
+      set: selectedSet || undefined,
+      page: 1,
+      rarity: nextRarity,
+      special: nextSpecial,
+    });
+
+    requestAnimationFrame(() => {
+      document.getElementById("resultados")?.scrollIntoView({ behavior: "smooth" });
+    });
   }
 
   return (
@@ -101,8 +170,8 @@ export default function HomePage() {
           </Link>
 
           <nav className="navLinks" aria-label="Navegação principal">
-            <a href="#buscar">Buscar</a>
-            <Link href="/cards">Cartas</Link>
+            <Link href="/">Buscar</Link>
+            <Link href="/cards" className="activeNav">Cartas</Link>
             <span className="mutedNav">Comparador</span>
           </nav>
 
@@ -116,16 +185,16 @@ export default function HomePage() {
       <section className="hero" id="buscar">
         <div className="heroGlow" />
         <div className="shell heroInner">
-          <div className="eyebrow">CARTAS POKÉMON, PREÇOS REAIS</div>
+          <div className="eyebrow">CATÁLOGO DE CARTAS</div>
 
           <h1>
-            Compare. Encontre.
-            <span> Decida melhor.</span>
+            Explore cartas.
+            <span> Encontre a impressão certa.</span>
           </h1>
 
           <p className="heroText">
-            Pesquise qualquer carta por nome ou número de coleção e encontre
-            ofertas reais em um só lugar.
+            Navegue pelo catálogo por nome, coleção ou código completo e abra
+            a impressão exata para comparar preços.
           </p>
 
           <form onSubmit={searchCards} className="searchBox">
@@ -134,7 +203,7 @@ export default function HomePage() {
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Nome da carta, coleção ou número (ex.: 199/165)"
+              placeholder="Nome, coleção ou código (ex.: Charizard ou 199/165)"
               aria-label="Pesquisar carta Pokémon"
             />
 
@@ -162,24 +231,24 @@ export default function HomePage() {
             <div className="benefit">
               <div className="benefitIcon">₿</div>
               <div>
-                <strong>Preços reais</strong>
-                <span>Ofertas carregadas direto dos marketplaces.</span>
+                <strong>Catálogo visual</strong>
+                <span>Encontre diferentes impressões da mesma carta.</span>
               </div>
             </div>
 
             <div className="benefit">
               <div className="benefitIcon">↕</div>
               <div>
-                <strong>Compare facilmente</strong>
-                <span>Veja a mesma impressão com clareza.</span>
+                <strong>Identifique a impressão</strong>
+                <span>Confira coleção, número e raridade antes de abrir.</span>
               </div>
             </div>
 
             <div className="benefit">
               <div className="benefitIcon">✓</div>
               <div>
-                <strong>Mais precisão</strong>
-                <span>Busca por nome, coleção e código completo.</span>
+                <strong>Vá direto aos preços</strong>
+                <span>Abra a carta escolhida e compare as ofertas disponíveis.</span>
               </div>
             </div>
           </div>
@@ -190,19 +259,21 @@ export default function HomePage() {
         <div className="sectionHeader">
           <div>
             <span className="sectionKicker">
-              {searched ? "RESULTADOS DA BUSCA" : "PRONTO PARA BUSCAR"}
+              {searched ? "CARTAS ENCONTRADAS" : "CATÁLOGO"}
             </span>
             <h2>
               {searched
-                ? query.trim()
-                  ? `Resultados para “${query.trim()}”`
-                  : "Resultados"
-                : "Encontre a impressão exata"}
+                ? selectedSet
+                  ? `Coleção ${selectedSet}`
+                  : query.trim()
+                    ? `Resultados para “${query.trim()}”`
+                    : "Resultados"
+                : "Explore o catálogo Pokémon"}
             </h2>
             <p>
               {searched
                 ? "Selecione a carta correta para comparar as ofertas disponíveis."
-                : "Use nome, coleção ou código como 199/165 para localizar a carta certa."}
+                : "Busque diretamente uma carta ou comece por uma das coleções em destaque."}
             </p>
           </div>
 
@@ -220,24 +291,93 @@ export default function HomePage() {
         )}
 
         {!searched && (
-          <div className="introGrid">
-            <div className="introCard primary">
-              <span className="introNumber">01</span>
-              <strong>Busque a carta</strong>
-              <p>Digite o nome, coleção, número ou código completo.</p>
+          <div className="collectionExplorer">
+            <div className="collectionHeading">
+              <div>
+                <span className="sectionKicker">EXPLORAR POR COLEÇÃO</span>
+                <h3>Coleções em destaque</h3>
+                <p>Escolha uma coleção para começar a explorar o catálogo.</p>
+              </div>
             </div>
 
-            <div className="introCard">
-              <span className="introNumber">02</span>
-              <strong>Escolha a impressão</strong>
-              <p>Confira coleção, número e raridade antes de abrir.</p>
+            <div className="collectionGrid">
+              {[
+                { name: "151", code: "MEW", era: "Scarlet & Violet" },
+                { name: "Obsidian Flames", code: "OBF", era: "Scarlet & Violet" },
+                { name: "Paldea Evolved", code: "PAL", era: "Scarlet & Violet" },
+                { name: "Shrouded Fable", code: "SFA", era: "Scarlet & Violet" },
+                { name: "Pokémon GO", code: "PGO", era: "Sword & Shield" },
+                { name: "Base Set", code: "BS", era: "Classic" },
+              ].map((set) => (
+                <button
+                  key={set.name}
+                  type="button"
+                  className="collectionCard"
+                  onClick={() => exploreCollection(set.name)}
+                >
+                  <span className="collectionCode">{set.code}</span>
+                  <strong>{set.name}</strong>
+                  <span className="collectionEra">{set.era}</span>
+                  <span className="collectionAction">Explorar →</span>
+                </button>
+              ))}
             </div>
 
-            <div className="introCard">
-              <span className="introNumber">03</span>
-              <strong>Compare ofertas</strong>
-              <p>Veja preço, condição, idioma e vendedor.</p>
+            <div className="collectionNote">
+              Clique em uma coleção para carregar as cartas diretamente pelo filtro real da API.
             </div>
+          </div>
+        )}
+
+        {searched && !error && (
+          <div className="filtersBar">
+            <div className="filterGroup">
+              <label htmlFor="rarityFilter">Raridade</label>
+              <select
+                id="rarityFilter"
+                value={rarityFilter}
+                disabled={loading}
+                onChange={(event) =>
+                  applyFilters(event.target.value, specialFilter)
+                }
+              >
+                <option value="">Todas</option>
+                <option value="Common">Common</option>
+                <option value="Uncommon">Uncommon</option>
+                <option value="Rare">Rare</option>
+                <option value="Double Rare">Double Rare</option>
+                <option value="Ultra Rare">Ultra Rare</option>
+                <option value="Illustration Rare">Illustration Rare</option>
+                <option value="Special Illustration Rare">Special Illustration Rare</option>
+              </select>
+            </div>
+
+            <div className="filterGroup">
+              <label htmlFor="specialFilter">Numeração</label>
+              <select
+                id="specialFilter"
+                value={specialFilter}
+                disabled={loading}
+                onChange={(event) =>
+                  applyFilters(rarityFilter, event.target.value)
+                }
+              >
+                <option value="">Todas</option>
+                <option value="false">Regulares</option>
+                <option value="true">★ Especiais</option>
+              </select>
+            </div>
+
+            {(rarityFilter || specialFilter) && (
+              <button
+                type="button"
+                className="clearFilters"
+                disabled={loading}
+                onClick={() => applyFilters("", "")}
+              >
+                Limpar filtros
+              </button>
+            )}
           </div>
         )}
 
@@ -285,6 +425,30 @@ export default function HomePage() {
             );
           })}
         </div>
+
+        {!loading && searched && !error && cards.length > 0 && totalPages > 1 && (
+          <div className="pagination">
+            <button
+              type="button"
+              onClick={() => changePage(page - 1)}
+              disabled={page <= 1 || loading}
+            >
+              ← Anterior
+            </button>
+
+            <span>
+              Página <b>{page}</b> de <b>{totalPages}</b>
+            </span>
+
+            <button
+              type="button"
+              onClick={() => changePage(page + 1)}
+              disabled={page >= totalPages || loading}
+            >
+              Próxima →
+            </button>
+          </div>
+        )}
       </section>
 
       <footer className="footer">
@@ -407,6 +571,11 @@ export default function HomePage() {
 
         .navLinks a:hover {
           color: #fff;
+        }
+
+        .navLinks .activeNav {
+          color: #fff;
+          font-weight: 800;
         }
 
         .mutedNav {
@@ -695,6 +864,165 @@ export default function HomePage() {
           line-height: 1.5;
         }
 
+        .collectionExplorer {
+          margin-top: 8px;
+        }
+
+        .collectionHeading {
+          margin-bottom: 20px;
+        }
+
+        .collectionHeading h3 {
+          margin: 7px 0 6px;
+          font-size: 26px;
+          letter-spacing: -0.7px;
+        }
+
+        .collectionHeading p {
+          margin: 0;
+          color: #7f93a7;
+          line-height: 1.5;
+        }
+
+        .collectionGrid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 14px;
+        }
+
+        .collectionCard {
+          min-height: 170px;
+          position: relative;
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          text-align: left;
+          padding: 22px;
+          border: 1px solid rgba(122, 156, 188, 0.16);
+          border-radius: 18px;
+          background:
+            radial-gradient(circle at 100% 0%, rgba(53, 182, 255, 0.12), transparent 44%),
+            rgba(11, 26, 40, 0.72);
+          color: #f7fbff;
+          cursor: pointer;
+          transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+        }
+
+        .collectionCard:hover {
+          transform: translateY(-3px);
+          border-color: rgba(54, 181, 255, 0.48);
+          background:
+            radial-gradient(circle at 100% 0%, rgba(53, 182, 255, 0.2), transparent 48%),
+            rgba(11, 26, 40, 0.9);
+        }
+
+        .collectionCode {
+          display: inline-flex;
+          padding: 5px 8px;
+          border-radius: 999px;
+          border: 1px solid rgba(54, 181, 255, 0.28);
+          color: #62c5ff;
+          background: rgba(25, 130, 199, 0.1);
+          font-size: 11px;
+          font-weight: 900;
+          letter-spacing: 0.8px;
+        }
+
+        .collectionCard strong {
+          margin-top: 22px;
+          font-size: 19px;
+        }
+
+        .collectionEra {
+          margin-top: 5px;
+          color: #7890a5;
+          font-size: 12px;
+        }
+
+        .collectionAction {
+          margin-top: auto;
+          padding-top: 18px;
+          color: #43b9ff;
+          font-size: 12px;
+          font-weight: 900;
+        }
+
+        .collectionNote {
+          margin-top: 14px;
+          color: #667d91;
+          font-size: 11px;
+        }
+
+        .filtersBar {
+          margin: 0 0 24px;
+          display: flex;
+          align-items: flex-end;
+          flex-wrap: wrap;
+          gap: 12px;
+          padding: 16px;
+          border: 1px solid rgba(122, 156, 188, 0.16);
+          border-radius: 16px;
+          background: rgba(10, 24, 38, 0.72);
+        }
+
+        .filterGroup {
+          min-width: 210px;
+          display: flex;
+          flex-direction: column;
+          gap: 7px;
+        }
+
+        .filterGroup label {
+          color: #7890a5;
+          font-size: 11px;
+          font-weight: 900;
+          letter-spacing: 0.8px;
+          text-transform: uppercase;
+        }
+
+        .filterGroup select {
+          height: 42px;
+          padding: 0 38px 0 12px;
+          border: 1px solid rgba(54, 181, 255, 0.25);
+          border-radius: 11px;
+          outline: none;
+          background: #0b1e2e;
+          color: #eaf6ff;
+          font: inherit;
+          font-size: 13px;
+          cursor: pointer;
+        }
+
+        .filterGroup select:focus {
+          border-color: rgba(54, 181, 255, 0.7);
+        }
+
+        .filterGroup select:disabled {
+          opacity: 0.55;
+          cursor: wait;
+        }
+
+        .clearFilters {
+          height: 42px;
+          padding: 0 14px;
+          border: 1px solid rgba(121, 157, 188, 0.2);
+          border-radius: 11px;
+          background: transparent;
+          color: #9fb4c7;
+          font-weight: 800;
+          cursor: pointer;
+        }
+
+        .clearFilters:hover:not(:disabled) {
+          color: #fff;
+          border-color: rgba(54, 181, 255, 0.5);
+        }
+
+        .clearFilters:disabled {
+          opacity: 0.45;
+          cursor: wait;
+        }
+
         .cardGrid {
           display: grid;
           grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
@@ -802,6 +1130,36 @@ export default function HomePage() {
           font-weight: 900;
         }
 
+        .pagination {
+          margin-top: 28px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 16px;
+          color: #8fa6ba;
+          font-size: 13px;
+        }
+
+        .pagination button {
+          border: 1px solid rgba(54, 181, 255, 0.3);
+          border-radius: 11px;
+          background: rgba(11, 30, 46, 0.9);
+          color: #55c2ff;
+          padding: 10px 15px;
+          font-weight: 800;
+          cursor: pointer;
+        }
+
+        .pagination button:hover:not(:disabled) {
+          border-color: rgba(54, 181, 255, 0.65);
+          color: #fff;
+        }
+
+        .pagination button:disabled {
+          opacity: 0.35;
+          cursor: not-allowed;
+        }
+
         .message,
         .emptyState {
           border-radius: 16px;
@@ -896,7 +1254,8 @@ export default function HomePage() {
           }
 
           .benefits,
-          .introGrid {
+          .introGrid,
+          .collectionGrid {
             grid-template-columns: 1fr;
           }
 
@@ -905,7 +1264,96 @@ export default function HomePage() {
             flex-direction: column;
           }
 
-          .cardGrid {
+          .collectionExplorer {
+          margin-top: 8px;
+        }
+
+        .collectionHeading {
+          margin-bottom: 20px;
+        }
+
+        .collectionHeading h3 {
+          margin: 7px 0 6px;
+          font-size: 26px;
+          letter-spacing: -0.7px;
+        }
+
+        .collectionHeading p {
+          margin: 0;
+          color: #7f93a7;
+          line-height: 1.5;
+        }
+
+        .collectionGrid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 14px;
+        }
+
+        .collectionCard {
+          min-height: 170px;
+          position: relative;
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          text-align: left;
+          padding: 22px;
+          border: 1px solid rgba(122, 156, 188, 0.16);
+          border-radius: 18px;
+          background:
+            radial-gradient(circle at 100% 0%, rgba(53, 182, 255, 0.12), transparent 44%),
+            rgba(11, 26, 40, 0.72);
+          color: #f7fbff;
+          cursor: pointer;
+          transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+        }
+
+        .collectionCard:hover {
+          transform: translateY(-3px);
+          border-color: rgba(54, 181, 255, 0.48);
+          background:
+            radial-gradient(circle at 100% 0%, rgba(53, 182, 255, 0.2), transparent 48%),
+            rgba(11, 26, 40, 0.9);
+        }
+
+        .collectionCode {
+          display: inline-flex;
+          padding: 5px 8px;
+          border-radius: 999px;
+          border: 1px solid rgba(54, 181, 255, 0.28);
+          color: #62c5ff;
+          background: rgba(25, 130, 199, 0.1);
+          font-size: 11px;
+          font-weight: 900;
+          letter-spacing: 0.8px;
+        }
+
+        .collectionCard strong {
+          margin-top: 22px;
+          font-size: 19px;
+        }
+
+        .collectionEra {
+          margin-top: 5px;
+          color: #7890a5;
+          font-size: 12px;
+        }
+
+        .collectionAction {
+          margin-top: auto;
+          padding-top: 18px;
+          color: #43b9ff;
+          font-size: 12px;
+          font-weight: 900;
+        }
+
+        .collectionNote {
+          margin-top: 14px;
+          color: #667d91;
+          font-size: 11px;
+        }
+
+        .cardGrid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 12px;
           }
@@ -936,7 +1384,96 @@ export default function HomePage() {
         }
 
         @media (max-width: 480px) {
-          .cardGrid {
+          .collectionExplorer {
+          margin-top: 8px;
+        }
+
+        .collectionHeading {
+          margin-bottom: 20px;
+        }
+
+        .collectionHeading h3 {
+          margin: 7px 0 6px;
+          font-size: 26px;
+          letter-spacing: -0.7px;
+        }
+
+        .collectionHeading p {
+          margin: 0;
+          color: #7f93a7;
+          line-height: 1.5;
+        }
+
+        .collectionGrid {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 14px;
+        }
+
+        .collectionCard {
+          min-height: 170px;
+          position: relative;
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          text-align: left;
+          padding: 22px;
+          border: 1px solid rgba(122, 156, 188, 0.16);
+          border-radius: 18px;
+          background:
+            radial-gradient(circle at 100% 0%, rgba(53, 182, 255, 0.12), transparent 44%),
+            rgba(11, 26, 40, 0.72);
+          color: #f7fbff;
+          cursor: pointer;
+          transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+        }
+
+        .collectionCard:hover {
+          transform: translateY(-3px);
+          border-color: rgba(54, 181, 255, 0.48);
+          background:
+            radial-gradient(circle at 100% 0%, rgba(53, 182, 255, 0.2), transparent 48%),
+            rgba(11, 26, 40, 0.9);
+        }
+
+        .collectionCode {
+          display: inline-flex;
+          padding: 5px 8px;
+          border-radius: 999px;
+          border: 1px solid rgba(54, 181, 255, 0.28);
+          color: #62c5ff;
+          background: rgba(25, 130, 199, 0.1);
+          font-size: 11px;
+          font-weight: 900;
+          letter-spacing: 0.8px;
+        }
+
+        .collectionCard strong {
+          margin-top: 22px;
+          font-size: 19px;
+        }
+
+        .collectionEra {
+          margin-top: 5px;
+          color: #7890a5;
+          font-size: 12px;
+        }
+
+        .collectionAction {
+          margin-top: auto;
+          padding-top: 18px;
+          color: #43b9ff;
+          font-size: 12px;
+          font-weight: 900;
+        }
+
+        .collectionNote {
+          margin-top: 14px;
+          color: #667d91;
+          font-size: 11px;
+        }
+
+        .cardGrid {
             grid-template-columns: 1fr;
           }
 

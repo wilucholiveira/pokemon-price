@@ -58,6 +58,22 @@ function getImages(image?: string | null) {
   };
 }
 
+function getSeriesId(set: any): string | null {
+  const value =
+    set?.serie?.id ??
+    set?.series?.id ??
+    set?.serie?.id ??
+    null;
+
+  return typeof value === "string"
+    ? value.trim().toLowerCase()
+    : null;
+}
+
+function isPocketSet(set: any): boolean {
+  return getSeriesId(set) === "tcgp";
+}
+
 // ==========================================================
 // INGLÊS = CATÁLOGO CANÔNICO
 // ==========================================================
@@ -98,6 +114,13 @@ async function syncCanonicalEnglish() {
       if (!remoteSet) {
         console.warn("  ⚠️ Set não encontrado.");
         failures++;
+        continue;
+      }
+
+      if (isPocketSet(remoteSet)) {
+        console.log(
+          `   ↷ Pokémon TCG Pocket (${getSeriesId(remoteSet)}). Ignorado.`
+        );
         continue;
       }
 
@@ -317,6 +340,16 @@ async function syncTranslations(
 
       if (!remoteSet) {
         failures++;
+        continue;
+      }
+
+      if (isPocketSet(remoteSet)) {
+        skipped++;
+
+        console.log(
+          `   ↷ Pokémon TCG Pocket (${getSeriesId(remoteSet)}). Ignorado.`
+        );
+
         continue;
       }
 
